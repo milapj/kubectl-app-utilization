@@ -1,0 +1,74 @@
+#!/bin/bash
+
+create=
+diff=
+type=
+version=
+namespace=
+backup_dir="/tmp/backups"
+diff_dir="/tmp/diff"
+usage="
+Usage:
+    -c create a backup of a resource
+    -d print diff of current and a specific backup version
+    -n namespace
+    -t resource type
+    -v specific backup version in time
+    -p path to store backups at the user specified path, default is /tmp/backups/
+    
+    Example:
+        kubectl backup-diff -c -n my-app -t configmap my-configmap
+        kubectl backuo-diff -d -n my-app -t configmap -v 4 my-configmap
+"
+while getopts cdn:t:v:p:h flag; do
+    case $flag in
+        c) create=1;;
+        d) diff=1;;
+        n) namespace=${OPTARG};;
+        t) type=${OPTARG};;
+        v) version=${OPTARG};;
+        p) backup_dir=${OPTARG:-"backups/$(date +"%Y%m%d%H%M%S")"};;
+        h) echo "$usage";;
+        \?) echo "$0: Error: Invalid option, see usage using -h arg" >&2; exit 1;;
+        :) echo "$0: Error: Option -${OPTARG} requires an argument, see usage with -h arg" >&2; exit 1;;
+    esac
+done
+
+if [ "$#" -eq 0 ]; then
+    echo "$usage"
+fi
+shift $((OPTIND - 1))
+
+resource="$*"
+if [ ! -z "$create" ]; then
+    if [ -z "$type" ]; then
+        echo "To create a backup please specify the resource and it's type, see usage by using -h arg"
+        exit 1
+    fi
+    mkdir -p "$backup_dir/$type" 
+    kubectl get "$type" "$resource" -o yaml > "$backup_dir/$type"/$(date +"%Y%m%d%H%M%S").yaml
+fi
+if [ ! -z "$diff" ]; then
+    if [ -z "$type" ]; then
+        echo "To see the diff between a previous backup please specify the resource and it's type, see usage by using -h arg"
+        exit 1
+    fi
+    mkdir -p "$diff_dir"
+    files=()
+    filesString=$(find "$backup_dir/$type" -type f -print0 | xargs -0 ls -t)
+    files=($filesString)
+    counter=1
+    echo "${#files[@]}"
+    for file in ${files[@]}; do
+        if [ $version -gt "${#files[@]}" ]; then
+            echo "The version of backup you selected does not exist"
+            exit 1
+        fi
+        if [ $counter == $version ];then
+            kubectl get "$type" $resource -o yaml > /tmp/diff/current-"$type".yaml
+            current=$(find /tmp/diff/current-"$type".yaml)
+            echo $(diff --color=always -w -s $file $current)
+        fi
+        ((counter=counter+1))
+    done
+fi

@@ -18,7 +18,7 @@ Usage:
     
     Example:
         kubectl backup-diff -c -n my-app -t configmap my-configmap
-        kubectl backuo-diff -d -n my-app -t configmap -v 4 my-configmap
+        kubectl backup-diff -d -n my-app -t configmap -v 4 my-configmap
 "
 while getopts cdn:t:v:p:h flag; do
     case $flag in
@@ -55,16 +55,17 @@ if [ ! -z "$diff" ]; then
     fi
     mkdir -p "$diff_dir"
     files=()
-    filesString=$(find "$backup_dir/$type" -type f -print0 | xargs -0 ls -t)
+    filesString=$(find "$backup_dir/$type" -type f -print0 | xargs -0 ls -tr)
     files=($filesString)
     counter=1
-    echo "${#files[@]}"
+
     for file in ${files[@]}; do
         if [ $version -gt "${#files[@]}" ]; then
             echo "The version of backup you selected does not exist"
             exit 1
         fi
-        if [ $counter == $version ];then
+        if [ $counter == $version ]; then
+            echo "Pointer at version - ${counter}"
             kubectl get "$type" $resource -o yaml > /tmp/diff/current-"$type".yaml
             current=$(find /tmp/diff/current-"$type".yaml)
             echo $(diff --color=always -w -s $file $current)

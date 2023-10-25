@@ -17,3 +17,4 @@ Usage:
         kubectl backuo-diff -d -n my-app -t configmap -v 4 my-configmap
 ```
 
+https://github.com/kubernetes-sigs/krew-index/assets/9828402/380264cf-1f04-44f7-b4e3-6c928f4c8fa7
